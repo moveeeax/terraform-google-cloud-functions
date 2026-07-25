@@ -14,9 +14,9 @@ variable "location" {
 }
 
 variable "runtime" {
-  description = "Runtime to run the function, e.g. nodejs20, python312 or go122."
+  description = "Runtime to run the function, e.g. nodejs22, python312 or go123. Pick a runtime that is still supported; Google stops patching deprecated runtimes and eventually blocks deploys against them."
   type        = string
-  default     = "nodejs20"
+  default     = "nodejs22"
 }
 
 variable "entry_point" {
@@ -41,7 +41,7 @@ variable "available_memory" {
 }
 
 variable "max_instance_count" {
-  description = "Maximum number of function instances."
+  description = "Maximum number of function instances. Acts as the cost ceiling for the function: every concurrent instance is billed, so keep this as low as the workload allows."
   type        = number
   default     = 100
 
@@ -51,10 +51,48 @@ variable "max_instance_count" {
   }
 }
 
+variable "ingress_settings" {
+  description = "Which networks may reach the function endpoint. One of ALLOW_INTERNAL_ONLY, ALLOW_INTERNAL_AND_GCLB or ALLOW_ALL. Defaults to ALLOW_INTERNAL_ONLY; set ALLOW_ALL only for functions that are meant to be callable from the public internet."
+  type        = string
+  default     = "ALLOW_INTERNAL_ONLY"
+
+  validation {
+    condition     = contains(["ALLOW_INTERNAL_ONLY", "ALLOW_INTERNAL_AND_GCLB", "ALLOW_ALL"], var.ingress_settings)
+    error_message = "ingress_settings must be one of ALLOW_INTERNAL_ONLY, ALLOW_INTERNAL_AND_GCLB or ALLOW_ALL."
+  }
+}
+
+variable "service_account_email" {
+  description = "Email of the service account the function runs as. Leaving this null makes the function run as the App Engine / Compute default service account, which holds project-wide Editor — supply a dedicated least-privilege service account instead."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.service_account_email == null || can(regex("^[^@[:space:]]+@[^@[:space:]]+$", var.service_account_email))
+    error_message = "service_account_email must be null or a service account email address."
+  }
+}
+
 variable "environment_variables" {
-  description = "Environment variables passed to the function at runtime."
+  description = "Non-sensitive environment variables passed to the function at runtime. These are stored in plaintext in Terraform state and are readable by anyone with view access to the function — use secret_environment_variables for credentials."
   type        = map(string)
   default     = {}
+}
+
+variable "secret_environment_variables" {
+  description = "Secret Manager secrets exposed to the function as environment variables. The value is resolved by the platform at runtime, so it never lands in Terraform state. project_id defaults to the function's project."
+  type = list(object({
+    key        = string
+    secret     = string
+    version    = optional(string, "latest")
+    project_id = optional(string)
+  }))
+  default = []
+
+  validation {
+    condition     = length(distinct([for s in var.secret_environment_variables : s.key])) == length(var.secret_environment_variables)
+    error_message = "Each secret_environment_variables entry must use a distinct key."
+  }
 }
 
 variable "labels" {
