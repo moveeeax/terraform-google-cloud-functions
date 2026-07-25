@@ -21,16 +21,31 @@ resource "google_storage_bucket" "source" {
   uniform_bucket_level_access = true
 }
 
+# Dedicated least-privilege identity for the function. Without this the
+# function would run as the App Engine default service account, which holds
+# project-wide Editor.
+resource "google_service_account" "function" {
+  project      = var.project_id
+  account_id   = "example-function-runtime"
+  display_name = "Runtime identity for the example Cloud Function"
+}
+
 module "function" {
   source = "../.."
 
   project_id    = var.project_id
   name          = "example-function"
   location      = var.region
-  runtime       = "nodejs20"
+  runtime       = "nodejs22"
   entry_point   = "helloWorld"
   source_bucket = google_storage_bucket.source.name
   source_object = "function-source.zip"
+
+  service_account_email = google_service_account.function.email
+
+  # Internal-only is the module default; spelled out here to make the choice
+  # visible. Use "ALLOW_ALL" for a function meant to serve public traffic.
+  ingress_settings = "ALLOW_INTERNAL_ONLY"
 }
 
 variable "project_id" {
