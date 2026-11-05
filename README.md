@@ -7,13 +7,20 @@ function from a source archive in Cloud Storage and runs it on Cloud Run.
 ## Usage
 
 ```hcl
+resource "google_storage_bucket" "source" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-processor-source"
+  location                    = "US"
+  uniform_bucket_level_access = true
+}
+
 resource "google_service_account" "function" {
   project    = var.project_id
   account_id = "processor-runtime"
 }
 
 module "function" {
-  source = "github.com/moveeeax/terraform-google-cloud-functions"
+  source = "github.com/moveeeax/terraform-google-cloud-functions?ref=v1.0.0"
 
   project_id    = var.project_id
   name          = "processor"
