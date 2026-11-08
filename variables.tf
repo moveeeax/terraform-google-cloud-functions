@@ -100,3 +100,25 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "vpc_connector" {
+  description = "Full resource name of the Serverless VPC Access connector the function sends egress through, projects/<project>/locations/<region>/connectors/<name> (the id of a google_vpc_access_connector). Null means no VPC access."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.vpc_connector == null || can(regex("^projects/[^/]+/locations/[^/]+/connectors/[^/]+$", var.vpc_connector))
+    error_message = "vpc_connector must be null or a full connector name: projects/<project>/locations/<region>/connectors/<name>."
+  }
+}
+
+variable "vpc_connector_egress_settings" {
+  description = "Which outbound traffic goes through vpc_connector: PRIVATE_RANGES_ONLY or ALL_TRAFFIC. Null leaves the platform default. Requires vpc_connector."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.vpc_connector_egress_settings == null || contains(["PRIVATE_RANGES_ONLY", "ALL_TRAFFIC"], coalesce(var.vpc_connector_egress_settings, "unset"))
+    error_message = "vpc_connector_egress_settings must be null, PRIVATE_RANGES_ONLY or ALL_TRAFFIC."
+  }
+}

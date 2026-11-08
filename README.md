@@ -81,6 +81,8 @@ for `mock_provider`; consumers of the module are unaffected.
 | `environment_variables`        | Non-sensitive environment variables (plaintext).                                  | `map(string)`       | `{}`                      |    no    |
 | `secret_environment_variables` | Secret Manager secrets exposed as environment variables.                          | `list(object({...}))` | `[]`                    |    no    |
 | `labels`                       | Labels applied to the function.                                                   | `map(string)`       | `{}`                      |    no    |
+| `vpc_connector`                | Full name of a Serverless VPC Access connector for egress into the VPC.           | `string`            | `null`                    |    no    |
+| `vpc_connector_egress_settings` | `PRIVATE_RANGES_ONLY` or `ALL_TRAFFIC`. Requires `vpc_connector`.                | `string`            | `null`                    |    no    |
 
 `secret_environment_variables` entries take the shape:
 
@@ -92,6 +94,26 @@ for `mock_provider`; consumers of the module are unaffected.
   project_id = optional(string) # defaults to var.project_id
 }
 ```
+
+## VPC access
+
+A function that calls a Cloud SQL private IP or another internal service needs
+a [Serverless VPC Access](https://cloud.google.com/vpc/docs/serverless-vpc-access)
+connector. Pass its full name, which is the `id` of a
+`google_vpc_access_connector`:
+
+```hcl
+vpc_connector                 = google_vpc_access_connector.this.id
+vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
+```
+
+`PRIVATE_RANGES_ONLY` sends only private-range traffic through the connector
+and is the recommended value for reaching private services such as Cloud SQL
+private IP. `ALL_TRAFFIC` sends all egress through the VPC, so reaching the
+internet then depends on the VPC's own route out (for example Cloud NAT). Both
+inputs default to `null`, which attaches no connector and leaves existing
+functions unchanged. Setting `vpc_connector_egress_settings` without
+`vpc_connector` is rejected at plan time.
 
 ## Outputs
 
