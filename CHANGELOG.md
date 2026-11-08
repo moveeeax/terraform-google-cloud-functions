@@ -6,6 +6,14 @@ All notable changes to this module are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `vpc_connector` and `vpc_connector_egress_settings`: route function egress
+  through a Serverless VPC Access connector, e.g. to reach Cloud SQL private
+  IP. Both default to `null`, so existing functions plan unchanged. The
+  connector must be given as its full resource name, and egress settings
+  without a connector are rejected at plan time.
+
 ### Changed
 
 - CI: bump actions to their current majors, pin tool versions, and restrict the

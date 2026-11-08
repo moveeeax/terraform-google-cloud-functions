@@ -31,6 +31,12 @@ resource "google_cloudfunctions2_function" "this" {
     # should supply a dedicated least-privilege service account instead.
     service_account_email = var.service_account_email
 
+    # Serverless VPC Access connector for outbound calls to private IPs, e.g.
+    # Cloud SQL private IP or internal load balancers. Both stay null by
+    # default, which keeps all egress on the public internet path.
+    vpc_connector                 = var.vpc_connector
+    vpc_connector_egress_settings = var.vpc_connector_egress_settings
+
     # Secret Manager references are injected by the platform at runtime, so
     # the values never appear in Terraform state or in the function config.
     dynamic "secret_environment_variables" {
@@ -42,6 +48,13 @@ resource "google_cloudfunctions2_function" "this" {
         version    = secret_environment_variables.value.version
         project_id = coalesce(secret_environment_variables.value.project_id, var.project_id)
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.vpc_connector_egress_settings == null || var.vpc_connector != null
+      error_message = "vpc_connector_egress_settings only takes effect with a vpc_connector. Set vpc_connector as well, or leave vpc_connector_egress_settings null."
     }
   }
 }

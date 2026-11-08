@@ -137,3 +137,80 @@ run "rejects_duplicate_secret_keys" {
 
   expect_failures = [var.secret_environment_variables]
 }
+
+run "no_vpc_access_by_default" {
+  command = plan
+
+  assert {
+    condition     = google_cloudfunctions2_function.this.service_config[0].vpc_connector == null
+    error_message = "No VPC connector should be attached by default, so existing functions plan unchanged."
+  }
+
+  assert {
+    condition     = google_cloudfunctions2_function.this.service_config[0].vpc_connector_egress_settings == null
+    error_message = "VPC connector egress settings should be left unset by default."
+  }
+}
+
+run "vpc_connector_is_wired_through" {
+  command = plan
+
+  variables {
+    vpc_connector                 = "projects/example-project/locations/us-central1/connectors/fn-connector"
+    vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
+  }
+
+  assert {
+    condition     = google_cloudfunctions2_function.this.service_config[0].vpc_connector == "projects/example-project/locations/us-central1/connectors/fn-connector"
+    error_message = "vpc_connector must be passed to the function's service config."
+  }
+
+  assert {
+    condition     = google_cloudfunctions2_function.this.service_config[0].vpc_connector_egress_settings == "PRIVATE_RANGES_ONLY"
+    error_message = "vpc_connector_egress_settings must be passed to the function's service config."
+  }
+}
+
+run "vpc_connector_without_egress_settings_plans" {
+  command = plan
+
+  variables {
+    vpc_connector = "projects/example-project/locations/us-central1/connectors/fn-connector"
+  }
+
+  assert {
+    condition     = google_cloudfunctions2_function.this.service_config[0].vpc_connector_egress_settings == null
+    error_message = "A connector alone should plan with egress settings left to the platform."
+  }
+}
+
+run "rejects_invalid_vpc_connector_egress_settings" {
+  command = plan
+
+  variables {
+    vpc_connector                 = "projects/example-project/locations/us-central1/connectors/fn-connector"
+    vpc_connector_egress_settings = "PRIVATE"
+  }
+
+  expect_failures = [var.vpc_connector_egress_settings]
+}
+
+run "rejects_short_vpc_connector_name" {
+  command = plan
+
+  variables {
+    vpc_connector = "fn-connector"
+  }
+
+  expect_failures = [var.vpc_connector]
+}
+
+run "rejects_egress_settings_without_connector" {
+  command = plan
+
+  variables {
+    vpc_connector_egress_settings = "ALL_TRAFFIC"
+  }
+
+  expect_failures = [google_cloudfunctions2_function.this]
+}
